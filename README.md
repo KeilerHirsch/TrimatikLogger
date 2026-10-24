@@ -1,204 +1,21 @@
-# Datenlogger mit Web-Server für Viessmann Trimatik-MC
-Zur Überwachung der Arbeitsweise der Heizungsregelung "Trimatik-MC" werden die Zustände von Ein- und Ausgängen aus der Kommunikation zwischen Regelbox und Schaltuhr aufgezeichnet. Der Gasverbrauch wird durch einen Reed-Kontakt am Gaszähler erfasst. Der Logger verbindet sich mit einem WLAN. Über sein Web-Interface http://trimatik können die Daten grafisch dargestellt werden. Die Aufzeichnung kann als CSV oder JSON heruntergeladen werden.
+# TrimatikLogger
 
-## Beispiel
-![Beispielanzeige des Web-Interfaces](/images/WebIF.png)
+**Eine ältere Heizungsregelung. Deutlich mehr Einblick.**
 
-Auf dem Web-Interface sind dargestellt:
-- Temperaturverläufe von Kesselwasser, Warmwasser und Außentemperatur
-- Schaltzustände der Pumpen, des Brenners und der Schaltuhr
-- mittlere Heizleistung, berechnet aus dem Gasverbrauch über ein Brennerintervall
-- Soll-Vorlauftemperatur, berechnet aus Programm, Außentemperatur und den eingestellten Kennlinienparametern.
-Aus dem Heizkennliniendiagramm der Trimatik-Dokumentation habe ich diese Näherung abgeleitet:
-  $$Vorlauftemperatur = \left( RT + Niveau \right) - Neigung \cdot \left(  1,7 \cdot \left(  AT-RT \right) + 0,018 \cdot \left( AT-RT \right) ^2 \right) $$
-  * RT = Soll-Raumtemperatur: Normalbetrieb = 20°C+Tagkorrektur (Sonne); reduzierter Betrieb = 14°C+Nachtkorrektur (Mond)
-  * AT = Außentemperatur
-- aktuelles Datenpaket und Messwerte der Regelung
+TrimatikLogger macht Betriebs- und Messdaten einer **Viessmann Trimatik-MC** über einen ESP32-basierten Datenlogger sichtbar. Statt nur den Zustand am Heizgerät abzulesen, lassen sich Temperaturverläufe, Schaltzustände und erfasste Gaszählerimpulse im lokalen Web-Interface betrachten. Messdaten können als CSV oder JSON exportiert werden.
 
-Über Pinch-Zoom bzw. Scrollrad kann die Zeitachse des Diagramms gezoomt werden.
+![Beispiel des TrimatikLogger-Web-Interfaces](images/WebIF.png)
 
-![Lengende zum Web-Interface](/images/WebIF_Legende.png)
+## Die Idee
 
-### Schnellstart / Verwendung
-1. Die Dateien "TrimatikLogger.ino", "html.h", "logger.h", "wifikey-vorlage.h" und "example.h" in das Verzeichnis "TrimatikLogger" herunterladen
-2. Die Zugangsdaten zum WLAN müssen bereitgestellt werden: dazu in der Vorlage "wifikey-vorlage.h" die Zugangsdaten eintragen und als "wifikey.h" speichern. "wifikey.h" wird nicht durch git synchronisiert (.gitignore).
-3. Konnte sich der Logger am WLAN anmelden, ist das Web-Interface über "http://trimatik" erreichbar
-4. Für den echten Betrieb:
-   - Hardwareanbindung an die Trimatik herstellen (siehe [Hardware](#hardware))
-   - in "TrimatikLogger.ino" die Zeile "#define BEISPIEL" auskommentieren um die Beispieldaten zu entfernen
+Die Regelbox und die Schaltuhr tauschen Daten aus, die der Logger auswertet. Ein Reed-Kontakt am Gaszähler kann den Verbrauch ergänzen. So werden Vorgänge nachvollziehbar, die sonst in der Heizungssteuerung verborgen bleiben.
 
-Wer nur das Web-Interface testen möchte (ohne den Logger als Server) kann dies mit den Dateien im "demo"-Verzeichnis tun.
+**Wichtig:** Die Hardware-Anbindung ist abhängig von der jeweiligen Trimatik-Version. Arbeiten an Heizungssteuerungen und elektrischen Anschlüssen erfordern entsprechende Fachkenntnisse und Sicherheitsmaßnahmen.
 
-## Trimatik-Kompatibilität
-Entworfen ist das Projekt für die Viessmann Trimatik-MC von 1/1995, die noch keine der im OpenV-Wiki beschriebenen Datenanbindungen hat. Sie besteht aus:
-- Trimatik-MC 7450263
-- Regelbox 7408217
-- Schaltuhr 9519249
+## Projekt und Herkunft
 
-Die dabei genutzte interne Datenverbindung ist nur in den neueren Regelbox/Schaltuhr-Kombinationen vorhanden:
-- Regelbox: 7408217, 7408421, 7814549
-- Schaltuhr 9519249 (mit Fragezeichentaste)
+Dies ist ein **persönlicher Fork**, keine eigenständige Neuveröffentlichung. Entwicklung, ursprüngliche Beschreibung, Abbildungen und technische Details stammen aus dem Projekt von **[cenders77](https://github.com/cenders77/TrimatikLogger)**. Es wird hier keine eigene getestete Gerätekompatibilität oder aktuelle Release-Freigabe behauptet.
 
-Ältere Trimatik-MC (7410065, 7410065-A, 7410260, 7410261, 7410261-A) und Miromatic-MC können mit den neueren Elektroniken aufgerüstet werden.
-Die Trimatik-MC/B 7450365-B ist anders aufgebaut, bei ihr dürfte der Datenzugang über den Stecker 58/24+25 ("2-Draht-Bus") möglich sein. Olli Z. hat unter [Viessmann Eurola OC mit 2-Drahtbus nachrüsten](https://www.mikrocontroller.net/topic/543681) die Bedieneinheit Comfortrol 7450180 untersucht, die auch für die 7450365-B geeignet ist.
-Die Trimatik-MC verfügt ebenfalls über digitale Kommunikation am Stecker 58/24+25, jedoch mit anderem Protokoll. Spätere Geräte verfügen über den Stecker 145 mit KM-Bus.
+[**Originaldokumentation und Schaltbilder**](docs/ORIGINAL_README.md) · [**Quellprojekt**](https://github.com/cenders77/TrimatikLogger) · [**Quellcode**](TrimatikLogger.ino) · [**Apache-2.0-Lizenz**](LICENSE)
 
-## Datenabgriff
-Regelbox und Schaltuhr tauschen über die zwei Kontakte 3 ('A') und 6 ('B') Daten aus.
-
-Platziert man den Mikrokontroller in der Schaltuhr, können die Daten direkt dort drin abgegriffen werden.
-Ich habe die Datenleitungen aus der Trimatik nach außen auf einen Stecker herausgeführt, an den der Logger angeschlossen wird.
-Je nach Version der Regelbox kann der Abgriff von A/B unterschiedlich sein. Bei meiner 7408217 sind neben dem 9ten DIP-Schalter von S1 ein weiteres Paar Lötaugen vorhanden, wie für einen 10ten DIP-Schalter. Das obere Lötauge ist 'B', das untere 'A'. Bei anderen Ausführungen der Regelbox ist ein 10fach DIP-Schalter bestückt, bei dem der 10te DIP-Schalter auch A und B ist.
-
-Ich habe Stiftkontakte in die Lötaugen bestückt und Leitungen zum Datenabgriff von der Hauptplatine aus von hinten in die Einbauöffnung der Regelbox geführt. Die Regelbox wird an den Leitungen vorbei eingesetzt und die Leitungen danach aufgesteckt.
-![Regelbox mit A/B-Stiften](/images/Regelbox_AB.jpg)
-![Einbauöffnung mit A/B-Leitungen](/images/AB-Leitungen.jpg)
-![Regelbox mit angeschlossenen A/B-Leitungen](/images/Regelbox_AB-Abgriff.jpg)
-
-## Datenformat auf A/B
-Auf 'B' sendet die Regelbox Anfragen und eigene Zustandsdaten, auf 'A' sendet die Schaltuhr die angefragten Daten. 
-
-Ca. alle 1,7s findet ein Datenaustausch statt. Die seriellen Daten werden in 8 Bit, 1 Stopbit, ungerade Parität, 1200 Bit/s übertragen (5V-Pegel).
-
-Jeder Datenaustausch wird durch mind. 22ms Low und 1,66ms High (2 Bitzeiten) auf 'A' eingeleitet, was als Break-Condition interpretiert werden kann. Danach folgen die 15 Datenbytes eines Telegramms und eine Pause von 1,47s.
-![Beginn eines Telegramms](/images/AB-Telegramm.png)
-- die Regelbox sendet zwei Frames in einem Abstand von ca. 2 Bitzeiten
-- die Schaltuhr antwortet ca. 0,3 Bitzeiten nach dem Stop-Bit
-- die Regelbox macht zwischen den Byte-Tripel (Elementen) eine Pause von ca. 15 Bitzeiten
-- die Regelbox beginnt alle ca. 1,695s diesen Datenaustausch
-- nach 13 Telegrammen wird der Break auf die Dauer eines Telegrammintervalls ausgedehnt (1,72s) und währenddessen auf dem Zweidrahtbus (Stecker 58) eine Nachricht gesendet
-
-Die 15 Bytes eines Telegramms interpretiere ich als Paket aus 5 Elementen zu je 3 Bytes:
-|Kanal B| A | Bedeutung |
-|-----|--|-----------|
-|0F 7F|  | Abfrage "Datumswechsel" |
-|     |84| Antwort der Schaltuhr: zwischen 0:00 und 0:01 0xA4, sonst 0x84 |
-|0F 45|	 | Abfrage "aktive Schaltuhrkanäle" |
-|     |00| Antwort der Schaltuhr: 0x11 TagHK1, 0x22 TagHK2, 0x44 WW, 0x88 Zirkulation |
-|1F 2F 00| | Status der Regelung: 0=fehlerfrei,<br>sonst 3F 2F xy und Anzeige von ↯:x:y auf dem Display der Schaltuhr |
-|1F 3A 3C| | Anzeigewert; normalerweise Kesseltemperatur,<br>bei den Testeinstellungen der entsprechende Wert |
-|1F 31 10| | wechselnder Parameter: z.B. Außentemperatur |
-
-Das letzte Element wechselt zwischen folgenden Parametern:
-|Kanal B| Bedeutung |
-|-------|-----------|
-|1F 31 xx|	Außentemperatur; xx = 4&middot;Außentemperatur [°C], vorzeichenbehaftet |
-|1F 32 xx|	Vorlauftemperatur; xx = 2&middot;Vorlauftemperatur [°C] |
-|1F 33 xx|	Kesseltemperatur; xx = 2&middot;Kesseltemperatur [°C] |
-|1F 34 FF|	Bedeutung unbekannt, evtl. digit. Raumtemperatursensor; bei mir immer 0xFF |
-|1F 35 xx|	Warmwasserspeichertemperatur; xx = 2&middot;Wassertemperatur [°C] |
-|1F 3A xx|	Anzeigewert; xx = 2&middot;Kesseltemperatur [°C] |
-|1F 25 xx|	Relaiszustände; bitcodiert:<br>80=HKB, 40=HKA, 20=MischerAuf, 10=MischerZu, 08=WW-Zirkul, 04=WW-Pumpe, 01=Brenner |
-|1F 26 13|	Bedeutung unbekannt; bei mir immer 0x13 |
-
-Die Übertragung eines Elements wird von der Regelbox initiiert. Der Aufbau eines Elements kann folgendermaßen interpretiert werden:
-- das erste Byte ist die Art des Elements: 0x0F ist die Abfrage eines Werts der Schaltuhr, 0x1F ist die Mitteilung eines Werts der Regelbox, 0x3F ist eine Störungsmeldung
-- das zweite Byte beschreibt um welchen Parameter es sich handelt
-- das dritte Byte ist der Wert des Parameters
-
-Eine sehr ausführliche und umfassende Beschreibung von Funktionen und Bauteilen der Trimatik hat Christian Vieth ausgearbeitet: http://cvieth.bplaced.net/heizung_viessmann_trimatik.html
-
-## Stromversorgung für den Trimatik-Logger
-In der Schaltuhr steht nur eine durch den Vorwiderstand R402 in der Regelbox begrenzte Spannung zur Verfügung. Wird dieser Vorwiderstand in der Regelbox überbrückt, stehen die 12V des darin befindlichen 7812T zur Verfügung, und können dann mittels Schaltregler den Logger versorgen.
-
-Soll die Spannungsversorgung nach außen geführt werden, gibt es auf der Rückseite der Hauptplatine einige Abgriffpunkte für 5V, oder auch ungeregelte 30V für einen Schaltregler.
-
-![Versorgungsspannungen an der Hauptplatine](/images/Hauptplatine_5V.jpg)
-
-Ich habe den 5V-Abgriff direkt an den Lötungen des Steckverbinders zur Regelbox angelötet und nach außen geführt.
-
-## Zählimpulse des Gaszählers
-Der Gaszähler "Honeywell BK-G4MT" hat an der letzten Stelle des Zählwerks einen Magneten, mit dem die Hundertstel m³ gezählt werden können. In der Mulde unterhalb des Zählwerks kann ein entsprechender Reed-Kontakt befestigt werden. Vorgesehen sind z.B. Typ IN-Z61 oder IN-Z62. Ich habe einen Standard-Reed-Kontakt (Littlefuse 59140) bearbeitet und in die Mulde geklemmt. Der Reedkontakt ist bei Zählerständen x,xx1 m³ bis x,xx9 m³ geöffnet.
-
-![Reed-Kontakt am Honeywell-Gaszähler](/images/Gas_Reedkontakt.jpg)
-
-## Hardware
-Entworfen ist der Trimatik-Logger für den "Wemos S2 mini" mit dem ESP32-S2 und ESP32. Die Beschreibung hier bezieht sich auf den "Wemos S2 mini".
-
-Die seriellen 5V-Datensignale A und B werden über Schottky-Dioden und interne Pullups über die UARTs gelesen.
-Der ursprüngliche Aufbau nutzt beide UARTs, um die Daten auf A und B unabhängig voneinander zu erfassen. Da A und B aber nie gleichzeitig Daten übertragen, können beide über Wired-AND auf eine einzige UART geführt werden.
-- 'A' ist über eine 1N5817 an GPIO16 angeschlossen und an 'U0RXD' mit internem Pull-Up geführt.
-- 'B' ist über eine 1N5817 an GPIO18 angeschlossen und an 'U1RXD' mit internem Pull-Up geführt.
-
-Der Gaszähler-Reed-Kontakt ist über eine 1N5817 und einen 1k-Pull-Up an GPIO21 geführt. Eine weitere 1N5817 ist antiparallel zum Reed-Kontakt gegen Masse geschaltet.
-
-Beim "Wemos S2 mini" sind weiterhin diese Ein-/Ausgänge belegt:
-- GPIO0 ist der seitliche Taster an der Platine (herausstehend)
-- GPIO15 ist die blaue LED auf der Platine
-- GPIO19 ist USB D-
-- GPIO20 ist USB D+
-
-![Verdrahtung des Wemos S2 mini, Schaltung](/images/Wemos-Verdrahtung.png)
-
-![einfache Verdrahtung des Wemos S2 mini, Unterseite](/images/Wemos_unten.jpg)
-
-![einfache Verdrahtung des Wemos S2 mini, Oberseite](/images/Wemos_oben.jpg)
-
-Schaltung mit Wired-AND an der UART1:
-
-![Verdrahtung des Wemos S2 mini mit Wired-AND, Schaltung](/images/Wemos-Verdrahtung_singleUART.png)
-
-
-## Software
-Entwickelt ist der Trimatik-Logger auf Arduino 1.8.12 mit der ESP32-Bibliothek v2.0.9 (ESP-IDF v4.4.4) für
-- "Wemos S2 mini" mit ESP32-S2: Arduino-IDE-Board "LOLIN S2 MINI"
-- "ESP32 Dev Kit" oder "ESP32-CAM" mit ESP32: Arduino-IDE-Board "ESP32 Dev Module"
-
-Auf meinem "Wemos S2 mini" befindet sich ein "ESP32-S2F H4" ohne PSRAM. Ist zusätzlich PSRAM vorhanden, kann dieser als größerer Logging-Speicher oder für weitere Funktionen eingesetzt werden, z.B. EMail-Versand. PSRAM ist z.B. auf "ESP32-CAM" oder "Wemos S2 mini" mit "ESP32-S2F N4R2" verfügbar.
-
-### UART
-UART0 und UART1 werden mit 1200baud 8E1 betrieben.
-Die RX-Interrupts legen die Daten in einen gemeinsamen Puffer ab. Solange die Interrupts aktiviert sind, ist die zeitliche Reihenfolge im Puffer korrekt. Während eines OTA-Updates sind die Interrupts jedoch gesperrt und die Reihenfolge wird zerstört. Dies kann durch Wired-AND der Datenleitungen 'A' und 'B' zusammen auf eine UART umgangen werden.
-Werden nach 1s keine weiteren Daten empfangen, wird das Datenpaket ausgewertet.
-
-### Datenpuffer
-Der Ringpuffer, in dem die Aufzeichnung gespeichert wird, besteht aus einem Start-Werte-Satz, bis zu 13200 Einträgen und einem Ist-Werte-Satz. Jeder Eintrag besteht aus Zeitdifferenz zum vorherigen Eintrag, Eintragstyp und Wert.
-Neu eingehende Daten werden mit dem Ist-Werte-Satz verglichen und ggfs. in einem neuen Eintrag abgelegt.
-Ist der Ringpuffer vollständig gefüllt, wird der älteste Eintrag in den Start-Werte-Satz übernommen und sein Platz wird frei für den neusten Eintrag.
-Im Heizbetrieb lassen sich so knapp 2 Tage, im Sommerbetrieb ca. 2 Wochen Aufzeichnung vorhalten.
-
-### Gaszähler
-Der Gas-Zählimpuls ist software-entprellt.
-
-### Web-Interface
-Die Datei "html.h" enthält die HTML-Daten des Web-Interfaces.
-Das Web-Interface bietet:
-- Darstellung und Aufschlüsselung des aktuellen Datenpakets der Trimatik, Gaszählerstands und Pufferzustands (WebSockets)
-- Temperatur-, Leistungs- und Status-Diagramm mit Zoom-/Scroll-Funktion (Binärdaten-Download)
-- Einstellregler der Heizkennlinie zur Berechnung der Soll-Vorlauftemperatur
-- Download der Messwerte als CSV mit optionaler Angabe des Startzeitpunkts "/messwerte.csv?since=xxx"
-- Abfrage der Messwerte als JSON mit optionaler Angabe des Startzeitpunkts "/messwerte.json?since=xxx"
-- Abfrage der Messwerte als Binärdaten mit optionaler Angabe des Startzeitpunkts "/messwerte.bin?since=xxx"
-- OTA-Update
-
-Als Beispiel habe ich ein weiteres Web-Interface mit vereinfachter Ansicht und Liste der Zählerstände zu den Programm-Umschaltzeitpunkten unter "html_simple.h" beigefügt.
-Die Web-Interface-Datei funktioniert auch wenn sie lokal abgespeichert ist, wenn im Javascript die Variable "gateway" auf "trimatik" geändert wird.
-Möglich ist dies da CORS erlaubt wird (Header "Access-Control-Allow-Origin: *").
-
-Auch der Zugriff durch eine Firewall hindurch ist möglich, z.B. mit einer FritzBox mit Port-Freigabe/-Umleitung und DynDNS-Abieter bzw. myFritz-Konto. "gateway" muss dann z.B. auf "abcdefghij.myfritz.net:12345" angepasst werden.
-
-### Weitere Features
-- Reset- und Update-fester Speicher der Logger-Daten mit Reset-Zähler
-- Uhrzeit NTP-synchronisiert mit Rückwärtskorrektur bei verspäteter NTP-Verfügbarkeit
-- CORS ist offen, um eine einfache Entwicklung von lokalen Web-Interfaces zu ermöglichen
-- WiFi-Mode kann geändert werden (g/n)
-- WiFi-Scan "/wifiscan.txt"
-- Kennlinien-Parameter-Abfrage "/param.json"
-- Log-Report "/logreport.txt" - Konsistenzprüfung der Daten
-- WebSocket-Funktionen:
-  * Setzen der Parameter der Heizkennlinie und Soll-Warmwassertemperatur
-  * Setzen des Gaszählerstands
-  * Setzen des WiFi-Standards 'g' oder 'n'
-  * Anpassen der Ringpuffergröße
-
-### Deaktivierte Funktionen:
-- DYNAMIC_LOGMEM: Der Ringpuffer wird nicht statisch sondern dynamisch allokiert - wird für PSRAM benötigt
-- USE_PSRAM: allokiert den Ringpuffer im PSRAM falls vorhanden
-- LOGALL: Vorlauftemperatur, 0x26 und 0x34 werden ebenfalls aufgezeichnet und per CSV geliefert
-
-## Anmerkungen
-Die Kennlinienparameter dienen ausschließlich der Berechnung der Soll-Vorlauftemperatur. Sie werden nicht von der Trimatik gelesen und es ist nicht möglich die Regelung damit zu beeinflussen. Insofern hat der Einstellregler für die Wassertemperatur keine Funktion, außer einer Merkhilfe, welche die Einstellung die Trimatik hat.
-
-In der Statusnachricht über WebSocket werden alle bekannten Werte übermittelt. Im Puffer werden nur die im WebInterface verwendeteten Werte abgelegt. Um alle Werte aufzuzeichnen kann LOGALL verwendet werden.
-
-Damit die Daten ein Firmware-Update überleben, muss die Adresse des Speicherblocks 'logBuf' in beiden Firmwares gleich sein. Die Adresse der aktuellen Firmware lässt sich über http://trimatik/info.txt abfragen, die der neuen Firmware steht in dem MAP-File im %TEMP%\arduino_build_xxxxxx
+*Kein offizielles Produkt von Viessmann.*
